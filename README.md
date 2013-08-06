@@ -5,6 +5,16 @@ collections. Allows you to efficiently find the differing pairs between two
 such collections without exchanging the collections themselves. Useful in the
 synchronization of distributed systems.
 
+# kv.linear
+
+`merkle.kv.linear` provides merkle trees over sorted collections of key-value
+pairs, which could be sorted maps, lists, results from a database; anything
+which exposes a sorted sequence of objects. You can pass arbitrary key and
+value extractor fns to `(tree)`; the defaults are the clojure builtin `key` and
+`val`. `kv.linear` is oriented towards a particular case of synchronization for
+k-ordered keys in distributed databases; see the namespace comments for gory
+details.
+
 Note: kv.linear is not as efficient as it could be at identifying identical
 regions.
 
