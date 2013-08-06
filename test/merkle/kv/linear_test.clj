@@ -122,3 +122,9 @@
 
       ; Check that the updates force the maps to converge:
       (is (into m1 d2) (into m2 d1)))))
+
+(deftest roundtrip-test
+  (dotimes [i 10]
+    (let [m (random-map gen/string gen/long (gen/geometric 0.05))
+          t (tree m)]
+      (is (= t (-> t node->map map->node))))))

@@ -47,6 +47,25 @@
 
 (defrecord Node [^long hash min-key max-key left right])
 
+(defn node->map
+  "Converts a Node to a standard Clojure map; useful for serialization."
+  [^Node node]
+  (when node
+    {:hash (.hash node)
+     :min-key (.min-key node)
+     :max-key (.max-key node)
+     :left    (node->map (.left node))
+     :right   (node->map (.right node))}))
+
+(defn map->node
+  "Converts a map to a Node; useful for serialization."
+  [m]
+  (when m
+    (Node. (:hash m)
+           (:min-key m)
+           (:max-key m)
+           (map->node (:left m))
+           (map->node (:right m))))) 
 (defn key-range
   "The inclusive range of keys a Node covers."
   [^Node node]
