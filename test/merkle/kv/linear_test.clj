@@ -103,10 +103,10 @@
   parts."
   (dotimes [i 1000]
     ; Build a random map
-    (let [seed (random-map gen/byte gen/byte (gen/geometric 0.05))
+    (let [seed (random-map gen/byte gen/string (gen/geometric 0.05))
           ; Perturb it into two variant copies
-          m1 (merge seed (random-map gen/byte gen/byte (gen/geometric 0.1)))
-          m2 (merge seed (random-map gen/byte gen/byte (gen/geometric 0.1)))
+          m1 (merge seed (random-map gen/byte gen/string (gen/geometric 0.1)))
+          m2 (merge seed (random-map gen/byte gen/string (gen/geometric 0.1)))
           ; Compute trees
           t1 (tree m1)
           t2 (tree m2)
@@ -121,7 +121,8 @@
 ;      (prn :diff2 (doall d2))
 
       ; Check that the updates force the maps to converge:
-      (is (into m1 d2) (into m2 d1)))))
+      (is (= m2 (select-keys (into m1 d2) (keys m2))))
+      (is (= m1 (select-keys (into m2 d1) (keys m1)))))))
 
 (deftest roundtrip-test
   (dotimes [i 10]
