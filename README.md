@@ -5,7 +5,7 @@ collections. Allows you to efficiently find the differing pairs between two
 such collections without exchanging the collections themselves. Useful in the
 synchronization of distributed systems.
 
-Note: kv.linear is not as efficient as it could be at identifying linear
+Note: kv.linear is not as efficient as it could be at identifying identical
 regions.
 
 Note: kv.linear has no way to limit the depth of the trees it produces right
