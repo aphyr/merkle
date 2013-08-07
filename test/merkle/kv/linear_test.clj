@@ -63,6 +63,15 @@
        dorun))
 
 (deftest identical-range-test
+  (testing "One empty"
+    (is (= (identical-ranges (tree (sorted-map :a 1))
+                             nil)
+           [])))
+
+  (testing "Both empty"
+    (is (= (identical-ranges nil nil)
+           [])))
+
   (testing "identical"
     (is (= (identical-ranges (tree (sorted-map :a 1 :b 2 :c 3 :d 4))
                              (tree (sorted-map :a 1 :b 2 :c 3 :d 4)))
