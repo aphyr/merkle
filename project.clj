@@ -1,4 +1,4 @@
-(defproject merkle "0.1.0"
+(defproject merkle "0.1.1-SNAPSHOT"
   :description "Merkle trees for constructing efficient diffs over collections."
   :url "http://github.com/aphyr/merkle"
   :license {:name "Eclipse Public License"
