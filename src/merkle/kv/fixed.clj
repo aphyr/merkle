@@ -12,14 +12,33 @@
 
 (defrecord Node
   [^long hash
+   ^long min-segment
+   ^long max-segment
    left
    right])
 
-(defn- crc32 [s]
-  (let [crc (CRC32.)]
-    (doseq [x s]
-      (.update crc (.hashCode ^Object x)))
-    (.getValue crc)))
+(defn node->map
+  "Converts a Node to a standard Clojure map; useful for serialization."
+  [^Node node]
+  (when node
+    {:hash    (.hash node)
+     :min-segment (.min-segment node)
+     :max-segment (.max-segment node)
+     :left    (node->map (.left node))
+     :right   (node->map (.right node))}))
+
+(defn map->node
+  "Converts a map to a Node; useful for serialization."
+  [m]
+  (when m
+    (Node.
+      (:hash m)
+      (:min-segment m)
+      (:max-segment m)
+      (map->node (:left m))
+      (map->node (:right m)))))
+
+;;;
 
 (defn- log2 [n]
   (/ (Math/log n) (Math/log 2)))
@@ -41,7 +60,7 @@
         lists (object-array
                 (repeatedly output-levels
                   #(ArrayList.)))]
-    (loop [idx 0, s hash-seq]
+    (loop [idx 0, s segment-seq]
       (when-not (empty? s)
 
         (let [x (first s)]
@@ -73,26 +92,70 @@
 
 (defn- hash-levels->tree
   "Takes tiered sequences from `hash-levels`, and returns the root `Node` of a tree."
-  [hash-levels]
-  (first
-    (reduce
-      (fn [nodes hashes]
+  [hash-levels num-segments]
+  (let [k (long (/ num-segments (Math/pow 2 (dec (count hash-levels)))))]
+    (first
+      (reduce
+        (fn [nodes hashes]
+          (map
+            (fn [hash [^Node l ^Node r]]
+              (Node. hash (.min-segment l) (.max-segment r) l r))
+            hashes
+            (partition 2 nodes)))
         (map
-          (fn [hash [l r]]
-            (Node. hash l r))
-          hashes
-          (partition 2 nodes)))
-      (map #(Node. % nil nil) (first hash-levels))
-      (rest hash-levels))))
+          (fn [idx hash]
+            (Node. hash (* idx k) (* (inc idx) k) nil nil))
+          (range)
+          (first hash-levels))
+        (rest hash-levels)))))
 
-(defn hash-tree
+(defn tree
   "Returns the root `Node` of a hash-tree with `depth` levels.  The input `segment-seq` is a list of hashes for a discrete
    number of segments, which must have a cardinality which is a power of two."
   [depth num-segments segment-seq]
-  (hash-levels->tree
-    (hash-levels depth num-segments segment-seq)))
+  (hash-levels->tree 
+    (hash-levels depth num-segments segment-seq)
+    num-segments))
 
+;;;
 
+(defn- merge-ranges [a b]
+  (if (and a b)
+    (let [prefix (butlast a)
+          suffix (rest b)
+          a' (last a)
+          b' (first b)]
+      (concat
+        prefix
+        (if (= (last a') (first b'))
+          [[(first a') (last b')]]
+          [a' b'])
+        suffix))
+    (or a b)))
 
+(defn identical-ranges
+  "Returns a list of [min,max] tuples describing the segment ranges for which the two nodes are identical."
+  [^Node n1 ^Node n2]
+  (when (and n1 n2)
+    (if (== (.hash n1) (.hash n2))
+      [[(.min-segment n1) (.max-segment n1)]]
+      (merge-ranges
+        (identical-ranges (.left n1) (.left n2))
+        (identical-ranges (.right n1) (.right n2))))))
 
-
+(defn diff-ranges
+  "Returns a list of [min,max] tuples describing the segment ranges for which the two nodes are different."
+  [^Node n1 ^Node n2]
+  (let [min (.min-segment n1)
+        max (.max-segment n1)
+        ranges (identical-ranges n1 n2)]
+    (concat
+      (when-not (= min (ffirst ranges))
+        [[0 (ffirst ranges)]])
+      (->> ranges
+        (partition 2 1)
+        (map
+          (fn [[[_ l] [u _]]]
+            [l u])))
+      (when-not (= max (last (last ranges)))
+        [[(last (last ranges)) max]]))))
