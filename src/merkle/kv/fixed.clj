@@ -76,9 +76,10 @@
           ;; update the level-0 hash
           (when x
             (let [^CRC32 c (get-crc 0)]
-              (.update c x)
-              (when emit-all?
-                (.add ^ArrayList (aget lists 0) x))))
+              (.update c x)))
+
+          (when emit-all?
+            (.add ^ArrayList (aget lists 0) x))
           
           ;; ascend the levels as appropriate
           (loop [idx idx, level 0]
