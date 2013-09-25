@@ -57,6 +57,7 @@
   segment."
   [output-levels num-segments segment-seq]
   (let [levels (long (p/inc (log2 num-segments)))
+        emit-all? (= output-levels levels)
         ^objects crcs (object-array levels)
         get-crc (fn [^long idx]
                   (if-let [crc (aget crcs idx)]
@@ -75,7 +76,9 @@
           ;; update the level-0 hash
           (when x
             (let [^CRC32 c (get-crc 0)]
-              (.update c x)))
+              (.update c x)
+              (when emit-all?
+                (.add (aget lists 0) x))))
           
           ;; ascend the levels as appropriate
           (loop [idx idx, level 0]
@@ -131,7 +134,8 @@
 ;;;
 
 (defn- merge-ranges [a b]
-  "Given two [min,max] ranges, does ???" 
+  "Merges contiguous ranges.  Returns a list of one or two ranges, depending on whether `a` and `b`
+   are contiguous." 
   (if (and a b)
     (let [prefix (butlast a)
           suffix (rest b)
