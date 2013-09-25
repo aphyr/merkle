@@ -5,4 +5,5 @@
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :dependencies [[org.clojure/clojure "1.5.1"]
                  [primitive-math "0.1.3"]]
-  :profiles {:dev {:dependencies [[org.clojure/data.generators "0.1.0"]]}})
+  :profiles {:dev {:dependencies [[org.clojure/data.generators "0.1.0"]
+                                  [reiddraper/simple-check "0.4.0"]]}})

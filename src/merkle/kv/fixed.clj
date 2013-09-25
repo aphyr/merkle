@@ -1,4 +1,9 @@
 (ns merkle.kv.fixed
+  "This merkle tree implementation operates over a fixed-size sequence of
+  32-bit integers, presumably the hashes of some other data structure. All
+  participants must agree on the sequence size in advance. Trees are of fixed
+  size, and identify the indices (starting with 0) of differing or identical
+  segments."
   (:require
     [merkle.range :as range]
     [primitive-math :as p])
@@ -40,14 +45,16 @@
 
 ;;;
 
-(defn- log2 [n]
+(defn log2 [n]
   (/ (Math/log n) (Math/log 2)))
 
-(defn- hash-levels
-  "Returns a seq of seqs, with `output-level` elements.  Each represents a level of the hash-tree, from bottom to top.
+(defn hash-levels
+  "Returns a seq of seqs, with `output-level` elements. Each represents a
+  level of the hash-tree, from bottom to top.
 
-   The `segment-seq` represents the input hashes of the underlying segments.  Elements in the hash-seq may be `nil`,
-   denoting no elements within that segment."
+  The `segment-seq` represents the input hashes of the underlying segments.
+  Elements in the hash-seq may be `nil`, denoting no elements within that
+  segment."
   [output-levels num-segments segment-seq]
   (let [levels (long (p/inc (log2 num-segments)))
         ^objects crcs (object-array levels)
@@ -64,7 +71,7 @@
       (when-not (empty? s)
 
         (let [x (first s)]
-          
+         
           ;; update the level-0 hash
           (when x
             (let [^CRC32 c (get-crc 0)]
@@ -91,7 +98,8 @@
     (map seq lists)))
 
 (defn- hash-levels->tree
-  "Takes tiered sequences from `hash-levels`, and returns the root `Node` of a tree."
+  "Takes tiered sequences from `hash-levels`, and returns the root `Node` of a
+  tree."
   [hash-levels num-segments]
   (let [k (long (/ num-segments (Math/pow 2 (dec (count hash-levels)))))]
     (first
@@ -110,16 +118,20 @@
         (rest hash-levels)))))
 
 (defn tree
-  "Returns the root `Node` of a hash-tree with `depth` levels.  The input `segment-seq` is a list of hashes for a discrete
-   number of segments, which must have a cardinality which is a power of two."
-  [depth num-segments segment-seq]
-  (hash-levels->tree 
-    (hash-levels depth num-segments segment-seq)
-    num-segments))
+  "Returns the root `Node` of a hash-tree with `depth` levels.  The input
+  `segment-seq` is a list of hashes for a discrete number of segments, which
+  must have a cardinality which is a power of two."
+  ([depth segment-seq]
+   (tree depth (count segment-seq) segment-seq))
+  ([depth num-segments segment-seq]
+   (hash-levels->tree 
+     (hash-levels depth num-segments segment-seq)
+     num-segments)))
 
 ;;;
 
 (defn- merge-ranges [a b]
+  "Given two [min,max] ranges, does ???" 
   (if (and a b)
     (let [prefix (butlast a)
           suffix (rest b)
@@ -134,7 +146,8 @@
     (or a b)))
 
 (defn identical-ranges
-  "Returns a list of [min,max] tuples describing the segment ranges for which the two nodes are identical."
+  "Returns a list of [min,max] tuples describing the segment ranges for which
+  the two nodes are identical."
   [^Node n1 ^Node n2]
   (when (and n1 n2)
     (if (== (.hash n1) (.hash n2))
@@ -144,7 +157,8 @@
         (identical-ranges (.right n1) (.right n2))))))
 
 (defn diff-ranges
-  "Returns a list of [min,max] tuples describing the segment ranges for which the two nodes are different."
+  "Returns a list of [min,max] tuples describing the segment ranges for which
+  the two nodes are different."
   [^Node n1 ^Node n2]
   (let [min (.min-segment n1)
         max (.max-segment n1)
@@ -159,3 +173,9 @@
             [l u])))
       (when-not (= max (last (last ranges)))
         [[(last (last ranges)) max]]))))
+
+(defn diffs
+  "Returns a sequence of segment indices for which two nodes are different."
+  [n1 n2]
+  (mapcat (partial apply range)
+          (diff-ranges n1 n2)))
