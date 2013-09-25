@@ -7,4 +7,5 @@
                  [primitive-math "0.1.3"]]
   :global-vars {*warn-on-reflection* true}
   :profiles {:dev {:dependencies [[org.clojure/data.generators "0.1.0"]
-                                  [reiddraper/simple-check "0.4.0"]]}})
+                                  [reiddraper/simple-check "0.4.0"]]}}
+  :jvm-opts ^:replace ["-server"])
