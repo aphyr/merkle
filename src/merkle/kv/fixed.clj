@@ -56,7 +56,10 @@
   Elements in the hash-seq may be `nil`, denoting no elements within that
   segment."
   [output-levels num-segments segment-seq]
-  (let [levels (long (p/inc (log2 num-segments)))
+  (assert (pos? output-levels))
+  (let [levels (if (zero? num-segments)
+                 0
+                 (long (p/inc (log2 num-segments))))
         emit-all? (= output-levels levels)
         ^objects crcs (object-array levels)
         get-crc (fn [^long idx]
@@ -101,25 +104,26 @@
 
     (map seq lists)))
 
-(defn- hash-levels->tree
+(defn hash-levels->tree
   "Takes tiered sequences from `hash-levels`, and returns the root `Node` of a
   tree."
   [hash-levels num-segments]
   (let [k (long (/ num-segments (Math/pow 2 (dec (count hash-levels)))))]
-    (first
-      (reduce
-        (fn [nodes hashes]
-          (map
-            (fn [hash [^Node l ^Node r]]
-              (Node. hash (.min-segment l) (.max-segment r) l r))
-            hashes
-            (partition 2 nodes)))
-        (map
-          (fn [idx hash]
-            (Node. hash (* idx k) (* (inc idx) k) nil nil))
-          (range)
-          (first hash-levels))
-        (rest hash-levels)))))
+    (if (zero? num-segments)
+      (Node. 0 0 0 nil nil)
+      (first
+        (reduce
+          (fn [nodes hashes]
+            (map
+              (fn [hash [^Node l ^Node r]]
+                (Node. hash (.min-segment l) (.max-segment r) l r))
+              hashes
+              (partition 2 nodes)))
+          (map-indexed
+            (fn [idx hash]
+              (Node. hash (* idx k) (* (inc idx) k) nil nil))
+            (first hash-levels))
+          (rest hash-levels))))))
 
 (defn tree
   "Returns the root `Node` of a hash-tree with `depth` levels.  The input
@@ -135,8 +139,8 @@
 ;;;
 
 (defn- merge-ranges [a b]
-  "Merges contiguous ranges.  Returns a list of one or two ranges, depending on whether `a` and `b`
-   are contiguous." 
+  "Merges contiguous ranges.  Returns a list of one or two ranges, depending on
+  whether `a` and `b` are contiguous." 
   (if (and a b)
     (let [prefix (butlast a)
           suffix (rest b)
@@ -165,19 +169,26 @@
   "Returns a list of [min,max] tuples describing the segment ranges for which
   the two nodes are different."
   [^Node n1 ^Node n2]
+  (assert (instance? Node n1))
+  (assert (instance? Node n2))
   (let [min (.min-segment n1)
         max (.max-segment n1)
         ranges (identical-ranges n1 n2)]
-    (concat
-      (when-not (= min (ffirst ranges))
-        [[0 (ffirst ranges)]])
-      (->> ranges
-        (partition 2 1)
-        (map
-          (fn [[[_ l] [u _]]]
-            [l u])))
-      (when-not (= max (last (last ranges)))
-        [[(last (last ranges)) max]]))))
+    (if (empty? ranges)
+      ; No identical ranges.
+      [[min max]]
+
+      ; *some* region is identical.
+      (concat
+        (when-not (= min (ffirst ranges))
+          [[0 (ffirst ranges)]])
+        (->> ranges
+             (partition 2 1)
+             (map
+               (fn [[[_ l] [u _]]]
+                 [l u])))
+        (when-not (= max (last (last ranges)))
+          [[(last (last ranges)) max]])))))
 
 (defn diffs
   "Returns a sequence of segment indices for which two nodes are different."
