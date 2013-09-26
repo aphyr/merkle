@@ -45,8 +45,36 @@
 
 ;;;
 
-(defn log2 [n]
-  (/ (Math/log n) (Math/log 2)))
+(defn log2 ^long [^long n]
+  (long (/ (Math/log n) (Math/log 2))))
+
+(defn crc-update-int!
+  "Updates a CRC with an integer. Returns the (mutated) CRC."
+  [^CRC32 crc ^int i]
+  (let [
+  (.update crc (unchecked-int (p/>>> l 24)))
+  (.update crc (unchecked-int (p/>>> l 16)))
+  (.update crc (unchecked-int (p/>>> l 8)))
+  (.update crc (unchecked-int l))
+  crc)
+
+(defn crc-update-crc!
+  "Updates a CRC with the value of a second CRC. Returns the (mutated) first
+  CRC."
+  [^CRC32 crc ^CRC32 crc2]
+  ; maybe avoid an object allocation??? vooooodooooo....
+  (let [l (unchecked-long (.getValue crc2))]
+    ; CRCs contain a 32-bit unsigned integer packed into a long, so we want to
+    ; extract bits 31-24, 23-16, 15-8, and 7-0. Since CRC update(int) *only*
+    ; uses bits 0-7 of that int, we'll repeatedly right-shift to create ints
+    ; containing values from 0-255.
+    ;
+    ; Fuck Java.
+    (.update crc (unchecked-int (p/>>> l 24)))
+    (.update crc (unchecked-int (p/>>> l 16)))
+    (.update crc (unchecked-int (p/>>> l 8)))
+    (.update crc (unchecked-int l))
+    crc))
 
 (defn hash-levels
   "Returns a seq of seqs, with `output-level` elements. Each represents a
@@ -55,7 +83,7 @@
   The `segment-seq` represents the input hashes of the underlying segments.
   Elements in the hash-seq may be `nil`, denoting no elements within that
   segment."
-  [output-levels num-segments segment-seq]
+  [^long output-levels ^long num-segments segment-seq]
   (assert (pos? output-levels))
   (let [levels (if (zero? num-segments)
                  0
@@ -79,7 +107,7 @@
           ;; update the level-0 hash
           (when x
             (let [^CRC32 c (get-crc 0)]
-              (.update c x)))
+              (.update c (unchecked-int x))))
 
           (when emit-all?
             (.add ^ArrayList (aget lists 0) x))
@@ -87,7 +115,7 @@
           ;; ascend the levels as appropriate
           (loop [idx idx, level 0]
             (when (== 1 (p/bit-and 1 idx))
-              (let [crc (aget crcs level)]
+              (let [^CRC32 crc (aget crcs level)]
                 
                 ;; if there's a crc, propagate it upwards
                 (when crc
@@ -96,7 +124,7 @@
 
                 ;; if we're above the threshold for the output tree, write to it
                 (let [output-level (p/+ output-levels 1 (p/- level levels))]
-                  (when (p/<= 0 output-level)
+                  (when (<= 0 output-level)
                     (.add ^ArrayList (aget lists output-level) (when crc (.getValue crc))))))
               (recur (p/>> idx 1) (p/inc level)))))
 
